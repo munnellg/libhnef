@@ -30,20 +30,21 @@ extern "C" {
 #endif
 	
 /**
- * @brief Allows us to call _hneftoken as HnefToken
+ * @brief Represents a moveable playing piece in the game.
  */
-typedef struct _hneftoken  HnefToken;
+typedef struct HnefToken {	
+	int rank; /**< Token's rank in the game. Either Soldier or King */
+	int team; /**< Token's team alignment. Either Swede or Muscovite */
+} HnefToken;
 
-HnefToken*   hnef_token_new                ( int team, int rank );
+void         hnef_token_init               ( HnefToken *token, int team, int rank )	;
 uint8_t      hnef_token_serialize          ( HnefToken *t );
-HnefToken*   hnef_token_deserialize        ( uint8_t serialized );	
+int          hnef_token_deserialize        ( HnefToken *token, uint8_t serialized );	
 
 int          hnef_token_get_team           ( HnefToken *t );
 void         hnef_token_set_team           ( HnefToken *t, int team );
 int          hnef_token_get_rank           ( HnefToken *t );
 void         hnef_token_set_rank           ( HnefToken *t, int rank );
-
-void         hnef_token_free               ( HnefToken *t );
 
 #ifdef _cplusplus
 }

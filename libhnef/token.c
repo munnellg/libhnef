@@ -16,40 +16,12 @@
  */
 #include "token.h"
 
-/**
- * @brief Represents a moveable playing piece in the game.
- */
-struct _hneftoken {	
-	int rank; /**< Token's rank in the game. Either Soldier or King */
-	int team; /**< Token's team alignment. Either Swede or Muscovite */
-};
-
-/**
- * @brief Create a new token object and return a pointer to it. This
- * function will return NULL if the allocation fails.
- *
- * @param team The team to which this token belongs. Either Swede or
- * Muscovite
- *
- * @param rank Token's rank in the game. Either Soldier or King.
- *
- * @return Reference to a new token object or NULL
- */
-HnefToken*
-hnef_token_new( int team, int rank ) {
-	HnefToken *t;
-
-	/* Allocate memory */
-	t = malloc(sizeof(*t));
-
-	/* If allocation was successful, initialize the object */
-	if(t) {
-			t->team = team;
-			t->rank = rank;
+void
+hnef_token_init( HnefToken *token, int team, int rank ) {
+	if(token) {
+		token->team = team;
+		token->rank = rank;
 	}
-
-	/* Return token or NULL */
-	return t;
 }
 
 /**
@@ -93,32 +65,20 @@ hnef_token_serialize ( HnefToken *token ) {
 	return serialized;
 }
 
-/**
- * @brief Deserializes the encoded input into a populated token
- * object. This function will return NULL if the deserialzation fails for
- * some reason.  
- *
- * @param serialized The encoded form of a HnefToken object
- *
- * @return The deserialized HnefToken object or NULL on failure
- */
-HnefToken *
-hnef_token_deserialize( uint8_t serialized ) {
-	HnefToken *deserialized;
-
-	/* Initialize deserialized object appropriately */
-	deserialized = NULL;
+int
+hnef_token_deserialize( HnefToken *token, uint8_t serialized ) {
 	
 	/* Check out test bit to ensure serialized is valid */
-	if( (serialized & 0x01) ) {
-		/* Extract info from serialized and pass it to a constructor */
-		deserialized = hnef_token_new(
-			(serialized >> 1) & 0x01,
-			(serialized >> 2) & 0x01);
+	if( !(serialized & 0x01)  || !token ) {
+		return 0;
 	}
-
-	/* Return deserialized object or NULL if failed */
-	return deserialized;
+	
+	/* Extract info from serialized and pass it to a constructor */
+	hnef_token_init( token,
+		(serialized >> 1) & 0x01,
+		(serialized >> 2) & 0x01
+	);
+	return 1;	
 }
 
 /**
@@ -167,17 +127,4 @@ hnef_token_get_rank( HnefToken *token ) {
 void
 hnef_token_set_rank( HnefToken *token, int rank ) {
 	token->rank = rank;
-}
-
-/**
- * @brief Free the memory allocated to HnefToken passed as an argument
- *
- * @param token Pointer to the HnefToken we want to deallocate
- */
-void
-hnef_token_free( HnefToken *token ) {
-	/* Check token is valid before attempting the free */
-	if(token) {
-		free(token);
-	}
 }

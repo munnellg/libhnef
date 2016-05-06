@@ -15,61 +15,25 @@
 
 #include "tile.h"
 
-/**
- * @brief Represents a single square on the game board.
- *
- * A tile may be occupied by a token. The occupying token is
- * identified by a pointer to an appropriate instance of the HnefToken
- * struct.
- *
- * A tile may also have a structure built on it. This structure is
- * represented by a suitable code and affects some of the rules that
- * determine how a token may interact with the tile
- *
- * Finally, some tiles act as escape routes for the king. It is the
- * goal of the game for one team to aid in their King's escape. This
- * attribute determines whether or not placing the king on this square
- * will result in victory for that particular team
- */
-struct _hneftile {
-	HnefToken* token;    /**< Pointer to the HnefToken standing on this tile */
-	int type;            /**< Type of structure built on this tile */
-	int is_escape;       /**< Boolean denoting whether the king can
-												* escape via this tile or not */
-};
 
 /**
- * @brief Allocates memory for a new tile object and returns the
- * result initialized with the parameters passed. Will return NULL on
- * failure to allocate.
+ * @brief Initializes passed tile struct with parameters given
  *
  * @param type The type of structure built on this tile
  *
  * @param is_escape A boolean denoting whether or not the king can
  * escape via this tile
  *
- * @param token A pointer to a token that is currently standing on
- * this tile. Pass NULL for a tile with no token on it
- *
  * @return A pointer to the newly allocated tile or NULL on failed
  * allocation
  */
-HnefTile*
-hnef_tile_new( int type, int is_escape, HnefToken *token ) {
-	HnefTile *tile;
-
-	/* Allocate memory to tile */
-	tile = malloc(sizeof(*tile));
-
-	/* Test if allocation was successful and initialize object if so */
+void
+hnef_tile_init( HnefTile *tile, int type, int is_escape ) {
 	if(tile) {
 			tile->type = type;
 			tile->is_escape = is_escape;
-			tile->token = token;
+			tile->is_occupied = 0;
 	}
-
-	/* Return the new tile or NULL on failed allocation */
-	return tile;
 }
 
 /**
@@ -107,7 +71,9 @@ hnef_tile_serialize( HnefTile *tile ) {
 		c = (c | type) << 3;
 		/* Call to serialize the token and append the result to */
 		/* the encoding                                         */
-		c |= hnef_token_serialize(hnef_tile_get_token(tile));
+		if(tile->is_occupied) {
+			c |= hnef_token_serialize(&(tile->token));	
+		}		
 	} 
 
 	/* Return the encoded tile */
@@ -122,22 +88,25 @@ hnef_tile_serialize( HnefTile *tile ) {
  * @return A pointer to a new HnefTile instance initialized with the
  * parameters extracted from serialized.
  */
-HnefTile *
-hnef_tile_deserialize( uint8_t serialized ) {
-	HnefTile *tile;
-	HnefToken *token;
+int
+hnef_tile_deserialize( HnefTile *tile, uint8_t serialized ) {
+	
+	if(!tile) {
+		return 0;
+	}
 
-	/* Start by deserializing the token bits */
-	token = hnef_token_deserialize(serialized);
-
-	/* Initialize new tile with appropriate bits and extracted token */
-	tile = hnef_tile_new(
+	/* Initialize new tile with appropriate bits */
+	hnef_tile_init(
+		tile,
 		(serialized >> 3) & 0x03,
-		(serialized >> 5) & 0x01,
-		token);
+		(serialized >> 5) & 0x01
+	);
+
+	/* Deserialize the token bits into the tile's token attribute*/
+	tile->is_occupied = hnef_token_deserialize(&(tile->token), serialized);
 
 	/* Return the new tile */
-	return tile;
+	return 1;
 }
 
 /**
@@ -173,6 +142,31 @@ hnef_tile_set_type( HnefTile *tile, int type ) {
  * @return The value of the is_escape attribute of tile
  */
 int
+hnef_tile_get_is_occupied( HnefTile *tile ) {
+	return tile->is_occupied;
+}
+
+/**
+ * @brief Set the is_escape attribute of tile
+ *
+ * @param tile The tile whose is_escape attribute we want to set
+ *
+ * @param is_escape The value we would like to assign to the tile's
+ * is_escape attribute
+ */
+void
+hnef_tile_set_is_occupied( HnefTile *tile, int is_occupied ) {
+	tile->is_occupied = is_occupied;
+}
+
+/**
+ * @brief get the is_escape attribute of the tile passed as an argument
+ *
+ * @param tile The tile whose is_escape attribute we want to retrieve
+ *
+ * @return The value of the is_escape attribute of tile
+ */
+int
 hnef_tile_get_is_escape( HnefTile *tile ) {
 	return tile->is_escape;
 }
@@ -198,7 +192,7 @@ hnef_tile_set_is_escape( HnefTile *tile, int is_escape ) {
  * @return A pointer to the token currently standing on the tile or
  * NULL if the tile is unoccupied
  */
-HnefToken*
+HnefToken
 hnef_tile_get_token( HnefTile *tile ) {
 	return tile->token;
 }
@@ -211,58 +205,20 @@ hnef_tile_get_token( HnefTile *tile ) {
  * @param token The token we would like to place on the tile
  */
 void
-hnef_tile_set_token( HnefTile *tile, HnefToken *token ) {
+hnef_tile_set_token( HnefTile *tile, HnefToken token ) {
 	tile->token = token;
+	tile->is_occupied = 1;
 }
 
 /**
- * @brief Replaces any token currently standing on this tile with the
- * token passed as an argument. Useful for operations such as captures
- * (where NULL would be passed as an argument). This function will
- * return a pointer to the token that was replaced so that it is not
- * lost in the process.
+ * @brief Set the token attribute of this tile
  *
- * @param tile The tile whose token we wish to replace
+ * @param tile The tile whose token we wish to set
  *
- * @param token The token which we would like to place on the tile
- *
- * @return A pointer to the token that was replaced on the tile
- */
-HnefToken*
-hnef_tile_replace_token( HnefTile *tile, HnefToken *token ) {
-	HnefToken *tmp;
-	
-	tmp = tile->token;
-	tile->token = token;
-	return tmp;
-}
-
-/**
- * @brief Test to see if there is a token standing on this instance of
- * HnefTile
- *
- * @param tile The tile whose occupancy we wish to test
- * 
- * @return True if there is a token on this tile. False otherwise
- */
-int
-hnef_tile_is_occupied( HnefTile *tile ) {
-	return tile->token != NULL;
-}
-
-/**
- * @brief Release the memory allocated to this tile instance. Will
- * also deallocate the memory allocated to any tokens standing on this
- * tile
- *
- * @param tile The tile whose memory we wish to deallocate
+ * @param token The token we would like to place on the tile
  */
 void
-hnef_tile_free( HnefTile *tile ) {
-	if(tile) {
-		hnef_token_free(tile->token);
-		free(tile);		
-	}
+hnef_tile_unset_token( HnefTile *tile ) {
+	hnef_token_init(&(tile->token), 0, 0);
+	tile->is_occupied = 0;
 }
-
-
